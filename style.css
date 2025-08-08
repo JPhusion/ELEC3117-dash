@@ -1,0 +1,7 @@
+body { font-family: sans-serif; padding: 2rem; background: #f4f4f4; }
+#login, #dashboard { max-width: 400px; margin: auto; background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+label { display: block; margin-bottom: 1rem; }
+input { width: 100%; padding: .5rem; margin-top: .25rem; }
+button { padding: .5rem 1rem; }
+.hidden { display: none; }
+.card { background: #efefef; padding: 1rem; margin-bottom: 1rem; border-radius: 6px; }
