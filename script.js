@@ -11,7 +11,7 @@ const loadingMsgEl = document.getElementById('loadingMsg');
 let pieChart;
 
 // ---------- loader ----------
-const LOAD_MIN = 1650, LOAD_MAX = 3400;
+const LOAD_MIN = 1650, LOAD_MAX = 5400;
 const messages = {
   toSessions: ['Connecting to cube…','Decrypting trip data…','Fetching sessions…'],
   toDashboard:['Analysing drive…','Warming up display…','Plotting safety pie…']
