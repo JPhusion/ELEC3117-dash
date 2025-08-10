@@ -11,7 +11,7 @@ const loadingMsgEl = document.getElementById('loadingMsg');
 let pieChart;
 
 // ---------- loader ----------
-const LOAD_MIN = 1650, LOAD_MAX = 5400;
+const LOAD_MIN = 1000, LOAD_MAX = 3000;
 const messages = {
   toSessions: ['Connecting to cube…','Decrypting trip data…','Fetching sessions…'],
   toDashboard:['Analysing drive…','Warming up display…','Plotting safety pie…']
@@ -83,6 +83,28 @@ function fmtRange(s){
   };
 }
 
+function getMood(s){
+  if (s.avgSpeed > 80) return 'angry';
+  if (s.safetyPct >= 90) return 'happy';
+  if (s.safetyPct >= 75) return 'neutral';
+  return 'sad';
+}
+function moodLabel(m){
+  return {happy:'Calm & confident', neutral:'Focused', sad:'Cautious', angry:'Agitated (likely speeding)'}[m];
+}
+function faceMarkup(m){
+  return `
+    <div class="fc face-cube mood--${m}" aria-label="${m} face">
+      <div class="fc-screen">
+        <span class="fc-eye left"></span>
+        <span class="fc-eye right"></span>
+        <span class="fc-brow left"></span>
+        <span class="fc-brow right"></span>
+        <span class="fc-mouth"></span>
+      </div>
+    </div>`;
+}
+
 // ---------- sessions page ----------
 function showSessionSelector(){
   selectorEl.innerHTML = '<h2>Select Session</h2>';
@@ -135,10 +157,16 @@ function renderDashboard(s){
   timeInfo.textContent = `Session: ${r.date} ${r.times}`;
   backBtn.classList.remove('hidden');
 
+  const mood = getMood(s);
   statsEl.innerHTML = `
     <div class="card score-comment ${getCategory(s)}">
-      <div class="score-number">${s.safetyPct.toFixed(1)}%</div>
-      <div class="score-text">${getComment(s)}</div>
+      <div class="score-wrap">
+        <div class="score-face">${faceMarkup(mood)}</div>
+        <div class="score-main">
+          <div class="score-number">${s.safetyPct.toFixed(1)}%</div>
+          <div class="score-text">${getComment(s)}</div>
+        </div>
+      </div>
     </div>
     <div class="card"><strong>Time Driving:</strong> ${s.timeMin.toFixed(1)} min</div>
     <div class="card"><strong>Unsafe Movements:</strong> ${s.unsafe}</div>
