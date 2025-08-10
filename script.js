@@ -3,9 +3,30 @@ const loginEl = document.getElementById('login');
 const selectorEl = document.getElementById('sessionSelector');
 const dashboardEl = document.getElementById('dashboard');
 const statsEl = document.getElementById('stats');
+const backBtn = document.getElementById('backBtn');
+const timeInfo = document.getElementById('sessionTimeInfo');
 const chartCtx = document.getElementById('safetyChart').getContext('2d');
+const loadingEl = document.getElementById('loading');
+const loadingMsgEl = document.getElementById('loadingMsg');
 let pieChart;
 
+// ---------- loader ----------
+const LOAD_MIN = 1650, LOAD_MAX = 3400;
+const messages = {
+  toSessions: ['Connecting to cube…','Decrypting trip data…','Fetching sessions…'],
+  toDashboard:['Analysing drive…','Warming up display…','Plotting safety pie…']
+};
+function showLoading(on){ loadingEl.classList.toggle('hidden', !on); }
+function rand(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function fakeWait(next, kind='toSessions'){
+  loadingMsgEl.textContent = pick(messages[kind]);
+  showLoading(true);
+  const ms = rand(LOAD_MIN, LOAD_MAX);
+  setTimeout(()=>{ showLoading(false); next(); }, ms);
+}
+
+// ---------- auth -> sessions ----------
 loginForm.addEventListener('submit', e => {
   e.preventDefault();
 
@@ -19,27 +40,51 @@ loginForm.addEventListener('submit', e => {
     const rawScore  = ((timeMin - unsafe) / timeMin) * 100;
     const safetyPct = Math.max(0, Math.min(100, rawScore));
     const avgSpeed  = distance / (timeMin / 60);
-    const session   = { timeMin, unsafe, distance, safetyPct, avgSpeed, timestamp: new Date().toISOString() };
+
+    // Demo-realistic end time: now minus 0–60 s; start based on duration
+    const endMs   = Date.now() - Math.floor(Math.random()*60*1000);
+    const startMs = endMs - timeMin*60*1000;
+
+    const session = {
+      timeMin, unsafe, distance, safetyPct, avgSpeed,
+      startIso: new Date(startMs).toISOString(),
+      endIso:   new Date(endMs).toISOString()
+    };
     saveSession(session);
   }
 
-  // always show existing sessions
-  showSessionSelector();
+  // Transition with loader
+  loginEl.classList.add('hidden');
+  dashboardEl.classList.add('hidden');
+  fakeWait(showSessionSelector,'toSessions');
 });
 
-function saveSession(sess) {
+// ---------- storage ----------
+function saveSession(sess){
   const sessions = JSON.parse(localStorage.getItem('drivingSessions')||'[]');
   sessions.unshift(sess);
   localStorage.setItem('drivingSessions', JSON.stringify(sessions));
 }
-
-function loadSessions() {
+function loadSessions(){
   return JSON.parse(localStorage.getItem('drivingSessions')||'[]');
 }
 
-function showSessionSelector() {
-  loginEl.classList.add('hidden');
-  dashboardEl.classList.add('hidden');
+// ---------- helpers ----------
+function fmtRange(s){
+  const st = s.startIso ? new Date(s.startIso)
+           : s.timestamp ? new Date(s.timestamp)
+           : new Date(Date.now() - s.timeMin*60*1000);
+  const en = s.endIso ? new Date(s.endIso)
+           : new Date(st.getTime() + s.timeMin*60*1000);
+  return {
+    date: st.toLocaleDateString(),
+    times: `${st.toLocaleTimeString()} → ${en.toLocaleTimeString()}`,
+    start: st, end: en
+  };
+}
+
+// ---------- sessions page ----------
+function showSessionSelector(){
   selectorEl.innerHTML = '<h2>Select Session</h2>';
   const sessions = loadSessions();
 
@@ -47,37 +92,49 @@ function showSessionSelector() {
     selectorEl.innerHTML += '<p>No sessions available.</p>';
   } else {
     const recent = sessions[0];
+    const r = fmtRange(recent);
     selectorEl.innerHTML += `
       <div class="card session-card large" data-index="0">
-        <strong>Most Recent (${new Date(recent.timestamp).toLocaleString()}):</strong><br>
+        <strong>Most Recent — ${r.date}</strong><br>
+        ${r.times}<br>
         Score: ${recent.safetyPct.toFixed(1)}%
       </div>`;
+
     if (sessions.length > 1) {
       const listEl = document.createElement('div');
       listEl.className = 'session-list';
       sessions.slice(1).forEach((s,i) => {
         const idx = i+1;
+        const f = fmtRange(s);
         const card = document.createElement('div');
         card.className = 'card session-card';
         card.dataset.index = idx;
         card.innerHTML = `
-          <strong>${new Date(s.timestamp).toLocaleString()}</strong><br>
+          <strong>${f.date}</strong><br>
+          ${f.times}<br>
           Score: ${s.safetyPct.toFixed(1)}%`;
         listEl.appendChild(card);
       });
       selectorEl.appendChild(listEl);
     }
-    document.querySelectorAll('.session-card').forEach(card => {
+
+    selectorEl.querySelectorAll('.session-card').forEach(card => {
       card.addEventListener('click', () => {
-        renderDashboard(loadSessions()[card.dataset.index]);
+        const s = loadSessions()[Number(card.dataset.index)];
+        selectorEl.classList.add('hidden');
+        fakeWait(()=>renderDashboard(s),'toDashboard');
       });
     });
   }
   selectorEl.classList.remove('hidden');
 }
 
-function renderDashboard(s) {
-  selectorEl.classList.add('hidden');
+// ---------- dashboard ----------
+function renderDashboard(s){
+  const r = fmtRange(s);
+  timeInfo.textContent = `Session: ${r.date} ${r.times}`;
+  backBtn.classList.remove('hidden');
+
   statsEl.innerHTML = `
     <div class="card score-comment ${getCategory(s)}">
       <div class="score-number">${s.safetyPct.toFixed(1)}%</div>
@@ -88,24 +145,31 @@ function renderDashboard(s) {
     <div class="card"><strong>Distance Travelled:</strong> ${s.distance.toFixed(1)} km</div>
     <div class="card"><strong>Avg Unsafe/min:</strong> ${(s.unsafe/s.timeMin).toFixed(2)}</div>
     <div class="card"><strong>Avg Speed:</strong> ${s.avgSpeed.toFixed(1)} km/h</div>`;
+
   dashboardEl.classList.remove('hidden');
 
-  const data = [s.safetyPct.toFixed(1), (100 - s.safetyPct).toFixed(1)];
+  const data = [Number(s.safetyPct.toFixed(1)), Number((100 - s.safetyPct).toFixed(1))];
   if (pieChart) pieChart.destroy();
   pieChart = new Chart(chartCtx, {
     type: 'pie',
     data: { labels: ['Safe %','Unsafe %'], datasets: [{ data }] }
   });
+
+  backBtn.onclick = () => {
+    dashboardEl.classList.add('hidden');
+    backBtn.classList.add('hidden');
+    fakeWait(showSessionSelector,'toSessions');
+  };
 }
 
-function getCategory(s) {
+// ---------- scoring helpers ----------
+function getCategory(s){
   if (s.avgSpeed > 80) return 'red';
   if (s.safetyPct >= 90) return 'green';
   if (s.safetyPct >= 75) return 'yellow';
   return 'red';
 }
-
-function getComment(s) {
+function getComment(s){
   if (s.avgSpeed > 80) {
     const msgs = [
       'Your average speed suggests you were likely speeding.',
@@ -118,7 +182,7 @@ function getComment(s) {
   } else {
     const safetyMsgs = {
       green: [
-        'Excellent driving with minimal risky maneuvers!',
+        'Excellent driving with minimal risky manoeuvres!',
         'Very safe driving—keep up the good work!',
         'Smooth and cautious throughout the trip!',
         'Outstanding! Almost no unsafe movements detected.',
@@ -135,7 +199,7 @@ function getComment(s) {
         'Drive cautiously: too many unsafe movements.',
         'High-risk driving detected—belt up and focus!',
         'Warning: unsafe driving habits observed.',
-        'Alert! Several dangerous maneuvers were made.',
+        'Alert! Several dangerous manoeuvres were made.',
         'Please slow down and concentrate on the road.'
       ]
     };

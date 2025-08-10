@@ -68,3 +68,94 @@ canvas {
   transform: scale(1.05);
   border: 2px solid #333;
 }
+
+#loading{
+  position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:rgba(255,255,255,0.8); backdrop-filter:saturate(1.2) blur(2px); z-index:9999;
+}
+#loading.hidden{ display:none; } /* <-- force-hide loader */
+.spinner{
+  width:44px; height:44px; border:4px solid #ddd; border-top-color:#333; border-radius:50%;
+  animation:spin 0.9s linear infinite
+}
+.loading-text{ margin-top:.75rem; font-weight:600; color:#333 }
+@keyframes spin{ to{ transform:rotate(360deg) } }
+
+.back-btn {
+  background: none;
+  border: none;
+  color: #007bff;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  padding: 0;
+}
+.back-btn:hover {
+  text-decoration: underline;
+}
+
+#loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,0.85);backdrop-filter:saturate(1.1) blur(2px);z-index:9999}
+#loading.hidden{display:none}
+/* Loader sizing + spacing */
+.cube{
+  --cube: 120px;        /* overall cube size */
+  --screen-pad: 14px;   /* inner screen inset */
+  --eye-w: 26px;
+  --eye-h: 34px;
+  --eye-gap: 18px;      /* distance between eye centres */
+  width: var(--cube);
+  height: var(--cube);
+  background:#111;
+  border-radius:10px;
+  position:relative;
+  box-shadow:0 10px 24px rgba(0,0,0,.25), inset 0 0 0 2px #222;
+  animation:cube-bob 1.6s ease-in-out infinite;
+}
+.cube::before,.cube::after{content:"";position:absolute;inset:0;border-radius:10px;pointer-events:none}
+.cube::before{box-shadow:inset 0 0 24px rgba(0,0,0,.6), inset 0 0 0 3px #000}
+.cube::after{background:linear-gradient(135deg,rgba(255,255,255,.14),transparent 40%);mix-blend-mode:screen}
+
+.screen{
+  position:absolute;
+  top:var(--screen-pad); bottom:var(--screen-pad);
+  left:var(--screen-pad); right:var(--screen-pad);
+  background:#000;
+  border-radius:8px;
+  box-shadow:inset 0 0 0 2px #222, inset 0 0 26px rgba(0,200,255,.6);
+  overflow:hidden;
+}
+
+/* Eyes: rounded rectangles with mild inner glow */
+.eye{
+  position:absolute;
+  width:var(--eye-w); height:var(--eye-h);
+  top:calc(50% - var(--eye-h)/2);
+  background:#cfefff;
+  border-radius:7px;
+  box-shadow:
+    inset 0 0 12px rgba(0,200,255,.7),
+    0 0 10px rgba(0,200,255,.35);
+  /* slight “pupil” sheen */
+  background-image: radial-gradient(120% 120% at 40% 40%, rgba(255,255,255,.35), transparent 60%);
+  transform-origin:center;
+  animation:blink 4s infinite, look 2.8s ease-in-out infinite;
+}
+/* position from centre so they never overlap */
+.eye.left  { left: calc(50% - var(--eye-gap)/2 - var(--eye-w)); }
+.eye.right { left: calc(50% + var(--eye-gap)/2); }
+
+/* Scanner bar */
+.scan{position:absolute;left:10px;right:10px;top:0;bottom:0;border-radius:6px;overflow:hidden}
+.scan::before{
+  content:""; position:absolute; left:0; right:0; height:8px;
+  background:linear-gradient(90deg,transparent,rgba(0,255,255,.45),transparent);
+  filter:blur(0.8px);
+  animation:scan 1.8s linear infinite;
+}
+.loading-text{margin-top:.9rem;font-weight:600;color:#333}
+
+/* motions */
+@keyframes cube-bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-6px) rotate(1deg)}}
+@keyframes blink{0%,8%,100%{transform:scaleY(1)}4%{transform:scaleY(.12)}}
+@keyframes look{0%,100%{transform:translateX(0)}50%{transform:translateX(2px)}}
+@keyframes scan{0%{top:-10%}100%{top:110%}}
